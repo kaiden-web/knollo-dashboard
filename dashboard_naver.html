@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>네이버 BS 매출 대시보드</title>
+<style>
+  :root {
+    --bg: #0F1115;
+    --panel: #161922;
+    --panel-2: #1D212C;
+    --border: #2A2F3C;
+    --text: #E7E9EE;
+    --text-dim: #8B92A5;
+    --accent: #6EE7B7;
+    --accent-2: #60A5FA;
+    --warn: #F87171;
+    --font-display: 'Pretendard', -apple-system, system-ui, sans-serif;
+    --font-num: 'SF Mono', 'Roboto Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .meta {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: var(--font-num);
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn-group {
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-display);
+  }
+
+  .btn:hover { color: var(--text); }
+
+  .btn.active {
+    background: var(--accent);
+    color: #0F1115;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 16px;
+  }
+
+  .summary-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    font-family: var(--font-num);
+  }
+
+  .stat-value.accent { color: var(--accent); }
+
+  /* Chart area */
+  #chart-svg { width: 100%; height: auto; display: block; }
+
+  .bar { fill: var(--accent-2); transition: fill 0.15s; cursor: pointer; }
+  .bar:hover { fill: var(--accent); }
+  .bar.selected { fill: var(--accent); }
+
+  .axis-label {
+    font-size: 10px;
+    fill: var(--text-dim);
+    font-family: var(--font-num);
+  }
+
+  .grid-line { stroke: var(--border); stroke-width: 1; }
+
+  .tooltip {
+    position: absolute;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    font-family: var(--font-num);
+    white-space: nowrap;
+    z-index: 10;
+  }
+
+  /* SKU table */
+  .sku-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .sku-table th {
+    text-align: left;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sku-table th.num, .sku-table td.num {
+    text-align: right;
+    font-family: var(--font-num);
+  }
+
+  .sku-table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sku-table tr:last-child td { border-bottom: none; }
+
+  .sku-table tr.other-row td { color: var(--text-dim); }
+
+  .rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    background: var(--panel-2);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-num);
+    margin-right: 8px;
+  }
+
+  .rank.top { background: var(--accent); color: #0F1115; }
+
+  .bar-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sku-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+
+  .sku-bar-fill {
+    height: 100%;
+    background: var(--accent-2);
+    border-radius: 3px;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 60px 20px;
+    font-size: 13px;
+  }
+
+  .search-box {
+    display: flex;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    flex: 1;
+    min-width: 180px;
+    max-width: 280px;
+  }
+
+  .search-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: var(--font-display);
+    outline: none;
+  }
+
+  .search-box input::placeholder { color: var(--text-dim); }
+
+  .search-box .btn {
+    padding: 8px 12px;
+  }
+
+  .date-range-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 8px;
+  }
+
+  .date-range-box input[type="date"] {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--font-num);
+    padding: 6px 8px;
+    outline: none;
+    color-scheme: dark;
+  }
+
+  .date-sep {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .btn-apply {
+    background: var(--accent);
+    color: #0F1115;
+    border-radius: 6px;
+    padding: 6px 12px;
+  }
+
+  .btn-apply:hover { color: #0F1115; opacity: 0.85; }
+
+  .search-active-banner {
+    background: var(--panel-2);
+    border: 1px solid var(--accent-2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 16px; }
+    .summary-row { flex-direction: column; }
+    .sku-table { font-size: 12px; }
+    .sku-table th, .sku-table td { padding: 8px 6px; }
+    .search-box { max-width: 100%; min-width: 100%; }
+    .date-range-box { width: 100%; flex-wrap: wrap; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1 id="page-title">네이버 BS 매출 대시보드</h1>
+    <div class="meta" id="generated-at">로딩 중...</div>
+  </header>
+
+  <div class="controls">
+    <div class="btn-group">
+      <button class="btn active" data-period="day">일별</button>
+      <button class="btn" data-period="week">주별</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn" data-range="7">최근 7일</button>
+      <button class="btn" data-range="14">최근 14일</button>
+      <button class="btn active" data-range="all">전체 기간</button>
+      <button class="btn" data-range="custom">직접 선택</button>
+    </div>
+    <div class="date-range-box" id="date-range-box" style="display:none;">
+      <input type="date" id="date-from">
+      <span class="date-sep">~</span>
+      <input type="date" id="date-to">
+      <button class="btn btn-apply" id="date-apply">적용</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn active" data-skucount="5">TOP 5</button>
+      <button class="btn" data-skucount="10">TOP 10</button>
+      <button class="btn" data-skucount="999">전체</button>
+    </div>
+    <div class="search-box">
+      <input type="text" id="sku-search" placeholder="SKU 또는 상품명 검색...">
+      <button class="btn" id="sku-search-clear" style="display:none;">✕</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title" id="chart-title">매출 추이</div>
+    <div class="summary-row" id="summary-cards"></div>
+    <div style="position: relative;">
+      <svg id="chart-svg" viewBox="0 0 1000 320"></svg>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title" id="sku-title">SKU별 매출 breakdown</div>
+    <div id="sku-table-container"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 설정: Apps Script 웹앱 배포 URL을 여기에 입력
+// ============================================================
+const DATA_URL = 'https://script.google.com/macros/s/AKfycbwkHzPryvGXQ_l9VpE8wxYbbwMZ0cSRc7F5ljMmBgZkPRndP5whEAoK35KDaEinpduP/exec';
+
+let rawData = null;
+let currentChannel = 'naver';
+let currentPeriod = 'day';
+let currentSkuCount = 5;
+let selectedIndex = null;
+let currentRange = 'all';
+let skuFilter = '';
+let customFrom = null;
+let customTo = null;
+
+const CHANNEL_TITLES = {
+  naver: '네이버 BS 매출 대시보드'
+};
+
+const fmtWon = (n) => Math.round(n).toLocaleString('ko-KR') + '원';
+const fmtCompact = (n) => {
+  if (Math.abs(n) >= 1e8) return (n / 1e8).toFixed(2) + '억';
+  if (Math.abs(n) >= 1e4) return (n / 1e4).toFixed(0) + '만';
+  return n.toLocaleString('ko-KR');
+};
+
+async function loadData() {
+  document.getElementById('page-title').textContent = CHANNEL_TITLES[currentChannel];
+  document.getElementById('generated-at').textContent = '로딩 중...';
+  try {
+    const url = DATA_URL + (DATA_URL.includes('?') ? '&' : '?') + 'channel=' + currentChannel;
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.error) {
+      throw new Error(json.error);
+    }
+    rawData = json;
+    document.getElementById('generated-at').textContent = '데이터 갱신: ' + json.generatedAt;
+    // 채널 전환 시 선택/필터 상태 초기화
+    selectedIndex = null;
+    render();
+  } catch (err) {
+    document.getElementById('chart-svg').outerHTML =
+      '<div class="empty-state">데이터를 불러오지 못했습니다.<br>DATA_URL 설정을 확인해주세요.<br><span style="font-family:var(--font-num);font-size:11px;">' + err.message + '</span></div>';
+  }
+}
+
+// 일별 -> 주별 집계로 변환
+function aggregateByWeek(dailyArr) {
+  const weekMap = {};
+  dailyArr.forEach(d => {
+    const date = new Date(d.date + 'T00:00:00+09:00');
+    // ISO 주 시작(월요일) 기준
+    const day = date.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + diff);
+    const weekKey = monday.toISOString().slice(0, 10);
+
+    if (!weekMap[weekKey]) {
+      weekMap[weekKey] = { date: weekKey, total: 0, skus: {} };
+    }
+    weekMap[weekKey].total += d.total;
+    d.skus.forEach(s => {
+      if (!weekMap[weekKey].skus[s.sku]) {
+        weekMap[weekKey].skus[s.sku] = { sku: s.sku, name: s.name, qty: 0, sales: 0 };
+      }
+      weekMap[weekKey].skus[s.sku].qty += s.qty;
+      weekMap[weekKey].skus[s.sku].sales += s.sales;
+    });
+  });
+
+  return Object.keys(weekMap).sort().map(k => {
+    const w = weekMap[k];
+    const skuArr = Object.values(w.skus).sort((a, b) => b.sales - a.sales);
+    return { date: w.date, total: w.total, skus: skuArr, isWeek: true };
+  });
+}
+
+function getCurrentData() {
+  if (!rawData) return [];
+  let daily = rawData.daily;
+
+  if (currentRange === 'custom' && customFrom && customTo) {
+    daily = daily.filter(d => d.date >= customFrom && d.date <= customTo);
+  } else if (currentRange !== 'all' && currentRange !== 'custom') {
+    const n = parseInt(currentRange);
+    daily = daily.slice(-n);
+  }
+
+  if (currentPeriod === 'week') return aggregateByWeek(daily);
+  return daily;
+}
+
+function matchesSkuFilter(s) {
+  if (!skuFilter) return true;
+  const q = skuFilter.toLowerCase();
+  const sku = String(s.sku || '').toLowerCase();
+  const name = String(s.name || '').toLowerCase();
+  return sku.includes(q) || name.includes(q);
+}
+
+function getDataPointValue(d) {
+  if (!skuFilter) return d.total;
+  return d.skus.filter(matchesSkuFilter).reduce((sum, s) => sum + s.sales, 0);
+}
+
+function getDataPointQty(d) {
+  if (!skuFilter) return null;
+  return d.skus.filter(matchesSkuFilter).reduce((sum, s) => sum + s.qty, 0);
+}
+
+function formatLabel(d) {
+  const date = new Date(d.date + 'T00:00:00+09:00');
+  if (currentPeriod === 'week') {
+    const end = new Date(date);
+    end.setDate(date.getDate() + 6);
+    return (date.getMonth() + 1) + '/' + date.getDate() + '~' + (end.getMonth() + 1) + '/' + end.getDate();
+  }
+  return (date.getMonth() + 1) + '/' + date.getDate();
+}
+
+function renderSummary(data) {
+  const container = document.getElementById('summary-cards');
+  if (data.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const values = data.map(d => getDataPointValue(d));
+  const totalSales = values.reduce((sum, v) => sum + v, 0);
+  const avg = totalSales / data.length;
+  const latest = data[data.length - 1];
+  const latestVal = values[values.length - 1];
+  const prevVal = values.length > 1 ? values[values.length - 2] : null;
+  const change = (prevVal !== null && prevVal !== 0) ? ((latestVal - prevVal) / prevVal * 100) : null;
+
+  const periodLabel = currentPeriod === 'week' ? '주' : '일';
+  const totalLabel = skuFilter ? '필터 매출 합계' : '전체 매출 합계';
+
+  container.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">${totalLabel}</div>
+      <div class="stat-value accent">${fmtWon(totalSales)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">${periodLabel} 평균 매출</div>
+      <div class="stat-value">${fmtWon(avg)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">최근 ${periodLabel} (${formatLabel(latest)})</div>
+      <div class="stat-value">${fmtWon(latestVal)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">전${periodLabel} 대비</div>
+      <div class="stat-value" style="color:${change === null ? 'var(--text-dim)' : change >= 0 ? 'var(--accent)' : 'var(--warn)'}">
+        ${change === null ? 'N/A' : (change >= 0 ? '+' : '') + change.toFixed(1) + '%'}
+      </div>
+    </div>
+  `;
+}
+
+function renderChart(data) {
+  const svg = document.getElementById('chart-svg');
+  const tooltip = document.getElementById('tooltip');
+
+  if (data.length === 0) {
+    svg.innerHTML = '';
+    return;
+  }
+
+  const W = 1000, H = 320;
+  const padL = 60, padR = 20, padT = 20, padB = 40;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  const values = data.map(d => getDataPointValue(d));
+  const maxVal = Math.max(...values, 1);
+  const barGap = 4;
+  const barW = chartW / data.length - barGap;
+
+  let svgContent = '';
+
+  // Y축 그리드라인 (4단계)
+  const ySteps = 4;
+  for (let i = 0; i <= ySteps; i++) {
+    const y = padT + chartH - (chartH / ySteps) * i;
+    const val = (maxVal / ySteps) * i;
+    svgContent += `<line class="grid-line" x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" />`;
+    svgContent += `<text class="axis-label" x="${padL - 8}" y="${y + 4}" text-anchor="end">${fmtCompact(val)}</text>`;
+  }
+
+  // 막대
+  data.forEach((d, i) => {
+    const val = values[i];
+    const barH = (val / maxVal) * chartH;
+    const x = padL + i * (barW + barGap);
+    const y = padT + chartH - barH;
+    const isSelected = selectedIndex === i;
+
+    svgContent += `<rect class="bar ${isSelected ? 'selected' : ''}" data-index="${i}"
+      x="${x}" y="${y}" width="${barW}" height="${Math.max(barH, 1)}" rx="3" />`;
+
+    // X축 라벨 (데이터 많으면 일부만 표시)
+    const labelStep = Math.ceil(data.length / 15);
+    if (i % labelStep === 0 || i === data.length - 1) {
+      svgContent += `<text class="axis-label" x="${x + barW / 2}" y="${H - padB + 16}" text-anchor="middle">${formatLabel(d)}</text>`;
+    }
+  });
+
+  svg.innerHTML = svgContent;
+
+  // 이벤트 바인딩
+  svg.querySelectorAll('.bar').forEach(bar => {
+    bar.addEventListener('mouseenter', (e) => {
+      const idx = parseInt(bar.dataset.index);
+      const d = data[idx];
+      const val = getDataPointValue(d);
+      const qty = getDataPointQty(d);
+      tooltip.innerHTML = `<strong>${formatLabel(d)}</strong><br>${fmtWon(val)}` +
+        (qty !== null ? `<br>수량 ${qty.toLocaleString()}` : '');
+      tooltip.style.opacity = '1';
+    });
+    bar.addEventListener('mousemove', (e) => {
+      const rect = svg.getBoundingClientRect();
+      const containerRect = svg.parentElement.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - containerRect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - containerRect.top - 40) + 'px';
+    });
+    bar.addEventListener('mouseleave', () => {
+      tooltip.style.opacity = '0';
+    });
+    bar.addEventListener('click', () => {
+      const idx = parseInt(bar.dataset.index);
+      selectedIndex = (selectedIndex === idx) ? null : idx;
+      render();
+    });
+  });
+}
+
+function renderSkuTable(data) {
+  const container = document.getElementById('sku-table-container');
+  const titleEl = document.getElementById('sku-title');
+
+  if (data.length === 0) {
+    container.innerHTML = '<div class="empty-state">데이터가 없습니다.</div>';
+    return;
+  }
+
+  // 선택된 기간이 있으면 해당 기간, 없으면 전체 합계
+  let skuMap = {};
+  let scopeLabel = '전체 기간';
+
+  if (selectedIndex !== null && data[selectedIndex]) {
+    const d = data[selectedIndex];
+    scopeLabel = formatLabel(d);
+    d.skus.forEach(s => {
+      if (matchesSkuFilter(s)) skuMap[s.sku] = { ...s };
+    });
+  } else {
+    data.forEach(d => {
+      d.skus.forEach(s => {
+        if (!matchesSkuFilter(s)) return;
+        if (!skuMap[s.sku]) skuMap[s.sku] = { sku: s.sku, name: s.name, qty: 0, sales: 0 };
+        skuMap[s.sku].qty += s.qty;
+        skuMap[s.sku].sales += s.sales;
+      });
+    });
+  }
+
+  if (skuFilter) scopeLabel += ` · 검색: "${skuFilter}"`;
+  titleEl.textContent = `SKU별 매출 breakdown — ${scopeLabel}`;
+
+  if (Object.keys(skuMap).length === 0) {
+    container.innerHTML = `<div class="empty-state">"${skuFilter}"에 해당하는 SKU/상품이 없습니다.</div>`;
+    return;
+  }
+
+  const skuArr = Object.values(skuMap).sort((a, b) => b.sales - a.sales);
+  const totalSales = skuArr.reduce((sum, s) => sum + s.sales, 0);
+  const maxSales = skuArr.length > 0 ? skuArr[0].sales : 1;
+
+  let displaySkus, otherSales = 0, otherQty = 0;
+  if (currentSkuCount >= skuArr.length) {
+    displaySkus = skuArr;
+  } else {
+    displaySkus = skuArr.slice(0, currentSkuCount);
+    skuArr.slice(currentSkuCount).forEach(s => {
+      otherSales += s.sales;
+      otherQty += s.qty;
+    });
+  }
+
+  let rows = displaySkus.map((s, i) => {
+    const pct = totalSales > 0 ? (s.sales / totalSales * 100) : 0;
+    const barPct = maxSales > 0 ? (s.sales / maxSales * 100) : 0;
+    return `
+      <tr>
+        <td><span class="rank ${i < 3 ? 'top' : ''}">${i + 1}</span>${s.name}</td>
+        <td style="color:var(--text-dim);font-family:var(--font-num);font-size:12px;">${s.sku}</td>
+        <td class="num">${s.qty.toLocaleString()}</td>
+        <td class="num">${fmtWon(s.sales)}</td>
+        <td class="num" style="color:var(--text-dim);">${pct.toFixed(1)}%</td>
+        <td>
+          <div class="bar-cell">
+            <div class="sku-bar-bg"><div class="sku-bar-fill" style="width:${barPct}%"></div></div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (otherSales > 0) {
+    const pct = totalSales > 0 ? (otherSales / totalSales * 100) : 0;
+    rows += `
+      <tr class="other-row">
+        <td><span class="rank">-</span>기타 (${skuArr.length - currentSkuCount}개)</td>
+        <td></td>
+        <td class="num">${otherQty.toLocaleString()}</td>
+        <td class="num">${fmtWon(otherSales)}</td>
+        <td class="num">${pct.toFixed(1)}%</td>
+        <td></td>
+      </tr>
+    `;
+  }
+
+  container.innerHTML = `
+    <table class="sku-table">
+      <thead>
+        <tr>
+          <th>상품명</th>
+          <th>SKU</th>
+          <th class="num">수량</th>
+          <th class="num">매출</th>
+          <th class="num">비중</th>
+          <th>비율</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function render() {
+  const data = getCurrentData();
+  let titleText = currentPeriod === 'week' ? '주별 매출 추이' : '일별 매출 추이';
+  titleText += skuFilter ? ` — "${skuFilter}" 필터 적용` : '';
+  titleText += ' (막대를 클릭하면 해당 기간 SKU 표시)';
+  document.getElementById('chart-title').textContent = titleText;
+  renderSummary(data);
+  renderChart(data);
+  renderSkuTable(data);
+}
+
+// 컨트롤 바인딩
+document.querySelectorAll('[data-period]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    selectedIndex = null;
+    render();
+  });
+});
+
+document.querySelectorAll('[data-skucount]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-skucount]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSkuCount = parseInt(btn.dataset.skucount);
+    render();
+  });
+});
+
+document.querySelectorAll('[data-range]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRange = btn.dataset.range;
+    selectedIndex = null;
+
+    const box = document.getElementById('date-range-box');
+    if (currentRange === 'custom') {
+      box.style.display = 'flex';
+      // 기본값: 데이터 전체 범위로 초기화 (아직 미설정 시)
+      if (rawData && rawData.daily.length > 0) {
+        const fromInput = document.getElementById('date-from');
+        const toInput = document.getElementById('date-to');
+        if (!fromInput.value) fromInput.value = customFrom || rawData.daily[0].date;
+        if (!toInput.value) toInput.value = customTo || rawData.daily[rawData.daily.length - 1].date;
+      }
+      // custom 선택 시점엔 아직 적용 버튼을 눌러야 반영됨
+      if (!customFrom || !customTo) return;
+    } else {
+      box.style.display = 'none';
+    }
+    render();
+  });
+});
+
+document.getElementById('date-apply').addEventListener('click', () => {
+  const from = document.getElementById('date-from').value;
+  const to = document.getElementById('date-to').value;
+  if (!from || !to) return;
+  customFrom = from;
+  customTo = to;
+  currentRange = 'custom';
+  selectedIndex = null;
+  render();
+});
+
+const skuSearchInput = document.getElementById('sku-search');
+const skuSearchClear = document.getElementById('sku-search-clear');
+
+skuSearchInput.addEventListener('input', (e) => {
+  skuFilter = e.target.value.trim();
+  skuSearchClear.style.display = skuFilter ? 'block' : 'none';
+  selectedIndex = null;
+  render();
+});
+
+skuSearchClear.addEventListener('click', () => {
+  skuSearchInput.value = '';
+  skuFilter = '';
+  skuSearchClear.style.display = 'none';
+  render();
+});
+
+loadData();
+</script>
+</body>
+</html>
