@@ -434,11 +434,12 @@ function aggregateByWeek(dailyArr) {
   const weekMap = {};
   dailyArr.forEach(d => {
     const date = new Date(d.date + 'T00:00:00+09:00');
-    // ISO 주 시작(월요일) 기준
-    const day = date.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
+    // KST 기준 요일 계산 (월=1, 화=2, ..., 일=0)
+    const kstDay = new Date(date.getTime() + 9 * 60 * 60 * 1000).getUTCDay();
+    // 월요일 시작 기준: 월(1)→0, 화(2)→1, ..., 일(0)→6
+    const diffToMonday = (kstDay === 0 ? -6 : 1 - kstDay);
     const monday = new Date(date);
-    monday.setDate(date.getDate() + diff);
+    monday.setDate(date.getDate() + diffToMonday);
     const weekKey = monday.toISOString().slice(0, 10);
 
     if (!weekMap[weekKey]) {
@@ -639,15 +640,15 @@ function renderSkuTable(data) {
     const d = data[selectedIndex];
     scopeLabel = formatLabel(d);
     d.skus.forEach(s => {
-      if (matchesSkuFilter(s)) skuMap[s.sku] = { ...s };
+      const k = s.sku + '||' + s.name; if (matchesSkuFilter(s)) skuMap[k] = { ...s };
     });
   } else {
     data.forEach(d => {
       d.skus.forEach(s => {
         if (!matchesSkuFilter(s)) return;
-        if (!skuMap[s.sku]) skuMap[s.sku] = { sku: s.sku, name: s.name, qty: 0, sales: 0 };
-        skuMap[s.sku].qty += s.qty;
-        skuMap[s.sku].sales += s.sales;
+        const k2 = s.sku + '||' + s.name; if (!skuMap[k2]) skuMap[k2] = { sku: s.sku, name: s.name, qty: 0, sales: 0 };
+        skuMap[k2].qty += s.qty;
+        skuMap[k2].sales += s.sales;
       });
     });
   }
