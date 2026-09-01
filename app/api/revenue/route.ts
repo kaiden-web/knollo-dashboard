@@ -1,5 +1,7 @@
-const SHEET_CSV_URL =
-  'https://docs.google.com/spreadsheets/d/1E9p9jLsV4ovNIv3QG_oWcTUwHAgiJvReYOG8PIrBdqw/gviz/tq?tqx=out:csv&gid=679036495&range=N4:V35';
+const SPREADSHEET_ID = '1E9p9jLsV4ovNIv3QG_oWcTUwHAgiJvReYOG8PIrBdqw';
+const SALES_CSV_URL = sheetCsvUrl(679036495, 'N4:V35');
+const PRODUCT_AD_CSV_URL = sheetCsvUrl(1238252641, 'A2:C1200');
+const CAMPAIGN_CSV_URL = sheetCsvUrl(1238252641, 'Q2:W1200');
 
 const PRODUCT_COLUMNS = [
   '허니콤츄',
@@ -11,6 +13,11 @@ const PRODUCT_COLUMNS = [
 ] as const;
 
 type ProductName = (typeof PRODUCT_COLUMNS)[number];
+type ProductValues = Record<ProductName, number>;
+
+function sheetCsvUrl(gid: number, range: string) {
+  return `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}&range=${range}`;
+}
 
 function parseCsv(input: string) {
   const rows: string[][] = [];
@@ -24,9 +31,7 @@ function parseCsv(input: string) {
       if (quoted && input[index + 1] === '"') {
         field += '"';
         index += 1;
-      } else {
-        quoted = !quoted;
-      }
+      } else quoted = !quoted;
     } else if (character === ',' && !quoted) {
       row.push(field);
       field = '';
@@ -36,9 +41,7 @@ function parseCsv(input: string) {
       if (row.some((value) => value !== '')) rows.push(row);
       row = [];
       field = '';
-    } else {
-      field += character;
-    }
+    } else field += character;
   }
 
   if (field || row.length) {
@@ -49,9 +52,16 @@ function parseCsv(input: string) {
 }
 
 function toIsoDate(value: string) {
-  const parts = value.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
-  if (!parts) return null;
-  return `${parts[1]}-${parts[2].padStart(2, '0')}-${parts[3].padStart(2, '0')}`;
+  const normalized = value.trim();
+  const parts = normalized.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (parts) return `${parts[1]}-${parts[2].padStart(2, '0')}-${parts[3].padStart(2, '0')}`;
+  const serial = Number(normalized);
+  if (Number.isFinite(serial) && serial > 30_000) {
+    return new Date(Date.UTC(1899, 11, 30) + Math.floor(serial) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+  }
+  return null;
 }
 
 function numberFromCell(value: string | undefined) {
@@ -60,12 +70,13 @@ function numberFromCell(value: string | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function emptyProducts() {
+  return Object.fromEntries(PRODUCT_COLUMNS.map((name) => [name, 0])) as ProductValues;
+}
+
 function kstDateParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(date);
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${value.year}-${value.month}-${value.day}`;
@@ -81,43 +92,85 @@ function previousDates(today: string, count: number) {
   });
 }
 
+async function fetchCsv(url: string) {
+  const response = await fetch(`${url}&refresh=${Date.now()}`, {
+    cache: 'no-store', headers: { Accept: 'text/csv' },
+  });
+  if (!response.ok) throw new Error(`Google Sheets responded with ${response.status}`);
+  return parseCsv(await response.text());
+}
+
 export async function GET() {
   try {
-    const response = await fetch(`${SHEET_CSV_URL}&refresh=${Date.now()}`, {
-      cache: 'no-store',
-      headers: { Accept: 'text/csv' },
-    });
-    if (!response.ok) throw new Error(`Google Sheets responded with ${response.status}`);
+    const [salesCsv, productAdCsv, campaignCsv] = await Promise.all([
+      fetchCsv(SALES_CSV_URL), fetchCsv(PRODUCT_AD_CSV_URL), fetchCsv(CAMPAIGN_CSV_URL),
+    ]);
 
-    const [header = [], ...rows] = parseCsv(await response.text());
-    const columnIndex = Object.fromEntries(header.map((name, index) => [name.trim(), index]));
-    const byDate = new Map<string, { total: number; products: Record<ProductName, number> }>();
-
-    for (const row of rows) {
-      const date = toIsoDate(row[columnIndex['일자']] ?? '');
+    const [salesHeader = [], ...salesRows] = salesCsv;
+    const salesIndex = Object.fromEntries(salesHeader.map((name, index) => [name.trim(), index]));
+    const salesByDate = new Map<string, { total: number; products: ProductValues }>();
+    for (const row of salesRows) {
+      const date = toIsoDate(row[salesIndex['일자']] ?? '');
       if (!date) continue;
       const products = Object.fromEntries(
-        PRODUCT_COLUMNS.map((name) => [name, numberFromCell(row[columnIndex[name]])]),
-      ) as Record<ProductName, number>;
-      byDate.set(date, { total: numberFromCell(row[columnIndex['매출']]), products });
+        PRODUCT_COLUMNS.map((name) => [name, numberFromCell(row[salesIndex[name]])]),
+      ) as ProductValues;
+      salesByDate.set(date, { total: numberFromCell(row[salesIndex['매출']]), products });
     }
+
+    const [adHeader = [], ...adRows] = productAdCsv;
+    const adIndex = Object.fromEntries(adHeader.map((name, index) => [name.trim(), index]));
+    const adsByDate = new Map<string, ProductValues>();
+    for (const row of adRows) {
+      const date = toIsoDate(row[adIndex['날짜']] ?? '');
+      const product = row[adIndex['제품']]?.trim() as ProductName | undefined;
+      if (!date || !product || !PRODUCT_COLUMNS.includes(product)) continue;
+      const products = adsByDate.get(date) ?? emptyProducts();
+      products[product] += numberFromCell(row[adIndex['광고비']]);
+      adsByDate.set(date, products);
+    }
+
+    const [campaignHeader = [], ...campaignRows] = campaignCsv;
+    const campaignIndex = Object.fromEntries(campaignHeader.map((name, index) => [name.trim(), index]));
+    const campaigns = campaignRows.flatMap((row) => {
+      const date = toIsoDate(row[campaignIndex['날짜']] ?? '');
+      const name = row[campaignIndex['캠페인']]?.trim();
+      if (!date || !name) return [];
+      const spend = numberFromCell(row[campaignIndex['광고비']]);
+      const conversionValue = numberFromCell(row[campaignIndex['전환값']]);
+      return [{
+        date, name, spend,
+        purchases: numberFromCell(row[campaignIndex['구매']]),
+        conversionValue,
+        clicks: numberFromCell(row[campaignIndex['고유링크클릭']]),
+        impressions: numberFromCell(row[campaignIndex['노출']]),
+        metaRoas: spend > 0 ? (conversionValue / spend) * 100 : null,
+      }];
+    });
 
     const today = kstDateParts();
     const days = previousDates(today, 7).map((date) => {
-      const source = byDate.get(date);
-      return source
-        ? { date, available: true, ...source }
-        : { date, available: false, total: null, products: null };
+      const sales = salesByDate.get(date);
+      return {
+        date,
+        available: Boolean(sales),
+        total: sales?.total ?? null,
+        products: sales?.products ?? null,
+        adSpend: adsByDate.get(date) ?? emptyProducts(),
+      };
     });
+    const metaLatestDate = [...new Set([
+      ...Array.from(adsByDate.keys()), ...campaigns.map((campaign) => campaign.date),
+    ])].sort().at(-1) ?? null;
 
     return Response.json(
-      { today, days, productNames: PRODUCT_COLUMNS, updatedAt: new Date().toISOString() },
+      { today, days, campaigns, metaLatestDate, productNames: PRODUCT_COLUMNS, updatedAt: new Date().toISOString() },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );
   } catch (error) {
-    console.error('Failed to load live revenue', error);
+    console.error('Failed to load commerce data', error);
     return Response.json(
-      { message: '실시간 매출 데이터를 불러오지 못했습니다.' },
+      { message: '실시간 매출·광고 데이터를 불러오지 못했습니다.' },
       { status: 502, headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );
   }
