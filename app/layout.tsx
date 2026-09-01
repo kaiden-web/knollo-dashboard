@@ -13,17 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'NOLO Commerce Pulse',
-  description: '놀로 자사몰 제품별 실매출과 광고 효율 대시보드',
+  title: 'NOLO 실시간 매출 | Commerce Pulse',
+  description: '놀로 자사몰의 최근 7일 제품별 실시간 매출 대시보드',
   openGraph: {
     title: 'NOLO Commerce Pulse',
-    description: '매출과 광고 효율을 한눈에',
+    description: '최근 7일 제품별 실시간 매출을 한눈에',
     images: [{ url: '/og.png', width: 1200, height: 630, alt: 'NOLO Commerce Pulse' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'NOLO Commerce Pulse',
-    description: '매출과 광고 효율을 한눈에',
+    description: '최근 7일 제품별 실시간 매출을 한눈에',
     images: ['/og.png'],
   },
 };
