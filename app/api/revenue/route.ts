@@ -2,7 +2,6 @@ const SPREADSHEET_ID = '1E9p9jLsV4ovNIv3QG_oWcTUwHAgiJvReYOG8PIrBdqw';
 const SALES_CSV_URL = sheetCsvUrl(679036495, 'N4:V35');
 const PRODUCT_AD_CSV_URL = sheetCsvUrl(1238252641, 'A2:C1200');
 const CAMPAIGN_CSV_URL = sheetCsvUrl(1238252641, 'Q2:W1200');
-const TARGET_CSV_URL = sheetCsvUrl(1525296213, 'A4:B6');
 
 const PRODUCT_COLUMNS = [
   '허니콤츄',
@@ -103,21 +102,24 @@ async function fetchCsv(url: string) {
 
 export async function GET() {
   try {
-    const [salesCsv, productAdCsv, campaignCsv, targetCsv] = await Promise.all([
+    const [salesCsv, productAdCsv, campaignCsv] = await Promise.all([
       fetchCsv(SALES_CSV_URL), fetchCsv(PRODUCT_AD_CSV_URL), fetchCsv(CAMPAIGN_CSV_URL),
-      fetchCsv(TARGET_CSV_URL),
     ]);
 
     const [salesHeader = [], ...salesRows] = salesCsv;
     const salesIndex = Object.fromEntries(salesHeader.map((name, index) => [name.trim(), index]));
-    const salesByDate = new Map<string, { total: number; products: ProductValues }>();
+    const salesByDate = new Map<string, { total: number; target: number; products: ProductValues }>();
     for (const row of salesRows) {
       const date = toIsoDate(row[salesIndex['일자']] ?? '');
       if (!date) continue;
       const products = Object.fromEntries(
         PRODUCT_COLUMNS.map((name) => [name, numberFromCell(row[salesIndex[name]])]),
       ) as ProductValues;
-      salesByDate.set(date, { total: numberFromCell(row[salesIndex['매출']]), products });
+      salesByDate.set(date, {
+        total: numberFromCell(row[salesIndex['매출']]),
+        target: numberFromCell(row[salesIndex['목표매출']]),
+        products,
+      });
     }
 
     const [adHeader = [], ...adRows] = productAdCsv;
@@ -151,13 +153,7 @@ export async function GET() {
     });
 
     const today = kstDateParts();
-    const monthPrefix = today.slice(0, 7);
-    const monthlyTarget = targetCsv.reduce((target, row) => (
-      row[0]?.trim() === '월 목표 매출' ? numberFromCell(row[1]) : target
-    ), 0);
-    const monthToDateSales = Array.from(salesByDate.entries())
-      .filter(([date]) => date.startsWith(monthPrefix) && date <= today)
-      .reduce((sum, [, sales]) => sum + sales.total, 0);
+    const todayTarget = salesByDate.get(today)?.target ?? 0;
     const days = previousDates(today, 7).map((date) => {
       const sales = salesByDate.get(date);
       return {
@@ -175,7 +171,7 @@ export async function GET() {
     return Response.json(
       {
         today, days, campaigns, metaLatestDate, productNames: PRODUCT_COLUMNS,
-        monthlyTarget, monthToDateSales, updatedAt: new Date().toISOString(),
+        todayTarget, updatedAt: new Date().toISOString(),
       },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );

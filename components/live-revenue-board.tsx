@@ -29,8 +29,7 @@ type RevenueResponse = {
   campaigns: Campaign[];
   metaLatestDate: string | null;
   productNames: string[];
-  monthlyTarget: number;
-  monthToDateSales: number;
+  todayTarget: number;
   updatedAt: string;
 };
 
@@ -113,8 +112,8 @@ export function LiveRevenueBoard() {
       todayMetaSpend,
       todayAdRatio: ratio(todayMetaSpend, today?.total ?? 0),
       sevenDayRoas: roas(sevenDayTotal, sevenDaySpend),
-      monthlyAchievement: data.monthlyTarget > 0
-        ? (data.monthToDateSales / data.monthlyTarget) * 100
+      todayTargetAchievement: data.todayTarget > 0
+        ? ((today?.total ?? 0) / data.todayTarget) * 100
         : null,
       productTotals,
     };
@@ -156,9 +155,9 @@ export function LiveRevenueBoard() {
               <p>광고비 ÷ 실매출</p>
             </article>
             <article className="metric-card">
-              <div className="metric-label"><span>9월 목표 매출 달성률</span><Target /></div>
-              <strong>{metricPercent(summary.monthlyAchievement)}</strong>
-              <p>{won.format(data.monthToDateSales)} / {won.format(data.monthlyTarget)}</p>
+              <div className="metric-label"><span>오늘 목표매출 달성률</span><Target /></div>
+              <strong>{metricPercent(summary.todayTargetAchievement)}</strong>
+              <p>{won.format(summary.today?.total ?? 0)} / 오늘 목표 {won.format(data.todayTarget)}</p>
             </article>
           </section>
 
@@ -183,7 +182,7 @@ export function LiveRevenueBoard() {
                         return (
                           <td key={name} className={!day.available ? 'empty-cell' : ''}>
                             <b>{day.available ? won.format(sales) : '—'}</b>
-                            <small>광고 {won.format(spend)} · {metricPercent(ratio(spend, sales))}</small>
+                            <small>광고비 {won.format(spend)} / {metricPercent(ratio(spend, sales))}</small>
                           </td>
                         );
                       })}

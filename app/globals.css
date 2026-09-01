@@ -81,7 +81,7 @@ button { cursor: pointer; }
 .revenue-table th { height: 44px; padding: 0 15px; color: #888a94; background: #f8f8fb; font-size: 9.5px; font-weight: 750; text-align: right; white-space: nowrap; }
 .revenue-table th:first-child { width: 120px; text-align: left; }
 .revenue-table th i { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 2px; }
-.revenue-table td { height: 68px; padding: 0 15px; border-top: 1px solid #eeeff2; color: #53555e; font-variant-numeric: tabular-nums; font-size: 11px; text-align: right; white-space: nowrap; }
+.revenue-table td { height: 76px; padding: 0 15px; border-top: 1px solid #eeeff2; color: #53555e; font-variant-numeric: tabular-nums; font-size: 11px; text-align: right; white-space: nowrap; }
 .revenue-table td:first-child { text-align: left; }
 .revenue-table td:first-child b { color: #303139; font-size: 11px; }
 .revenue-table tr.today-row { background: #f6f4ff; }
@@ -89,9 +89,9 @@ button { cursor: pointer; }
 .today-badge { display: inline-block; margin-left: 7px; padding: 3px 5px; border-radius: 5px; color: #5747d6; background: #e7e2ff; font-size: 8px; font-weight: 850; }
 .revenue-table td.empty-cell { color: #c1c2c8; }
 .revenue-table td.row-total { color: #4f40cf; font-weight: 800; }
-.commerce-table td:not(:first-child) > b { display: block; color: #292a31; font-size: 11.5px; }
-.commerce-table td small { display: block; margin-top: 7px; color: #686b76; font-size: 10px; font-weight: 720; }
-.commerce-table td.row-total { color: #4f40cf; font-size: 11px; }
+.commerce-table td:not(:first-child) > b { display: block; color: #24252c; font-size: 14px; font-weight: 800; }
+.commerce-table td small { display: block; margin-top: 8px; color: #686b76; font-size: 10.5px; font-weight: 720; }
+.commerce-table td.row-total { color: #4f40cf; font-size: 14px; }
 .table-footnote { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 20px; color: #92949d; background: #fbfbfd; border-top: 1px solid #ebecef; font-size: 9.5px; }
 .table-footnote span { display: flex; align-items: center; gap: 6px; }
 .table-footnote i { width: 6px; height: 6px; border-radius: 50%; background: #6758f3; }
