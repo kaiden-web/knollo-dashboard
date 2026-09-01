@@ -112,14 +112,14 @@ button { cursor: pointer; }
 .product-card dd { margin: 4px 0 0; color: #4c4e57; font-size: 9px; font-weight: 800; }
 .product-card small { display: block; margin-top: 7px; color: #a0a2aa; font-size: 9px; }
 .campaign-panel { scroll-margin-top: 92px; margin-top: 46px; overflow: hidden; }
-.campaign-date { color: #8c8e97; font-size: 10px; }
+.campaign-date { color: #777a85; font-size: 12px; font-weight: 650; }
 .campaign-table-scroll { overflow-x: auto; }
-.campaign-table { width: 100%; min-width: 900px; border-collapse: collapse; }
-.campaign-table th { height: 42px; padding: 0 18px; background: #f8f8fb; color: #888a94; font-size: 9px; text-align: right; }
+.campaign-table { width: 100%; min-width: 1080px; border-collapse: collapse; }
+.campaign-table th { height: 48px; padding: 0 18px; background: #f8f8fb; color: #777a85; font-size: 11.5px; font-weight: 780; text-align: right; white-space: nowrap; }
 .campaign-table th:first-child { text-align: left; }
-.campaign-table td { height: 50px; padding: 0 18px; border-top: 1px solid #eeeff2; color: #555760; font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
-.campaign-table td:first-child { max-width: 520px; color: #35363d; text-align: left; }
-.campaign-table td b { color: #4f40cf; }
+.campaign-table td { height: 60px; padding: 0 18px; border-top: 1px solid #eeeff2; color: #444650; font-size: 13px; font-weight: 650; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.campaign-table td:first-child { max-width: 500px; color: #303139; font-size: 13px; font-weight: 720; line-height: 1.45; text-align: left; white-space: normal; }
+.campaign-table td b { color: #4f40cf; font-size: 13.5px; font-weight: 820; }
 .dashboard-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 50px; padding-top: 18px; color: #9a9ca5; border-top: 1px solid #dedfe5; font-size: 9.5px; }
 .dashboard-footer span { color: #5e6069; font-weight: 750; letter-spacing: .04em; }
 .dashboard-footer p { margin: 0; }

@@ -228,7 +228,7 @@ export function LiveRevenueBoard() {
             </div>
             <div className="campaign-table-scroll">
               <table className="campaign-table">
-                <thead><tr><th>캠페인</th><th>광고비</th><th>구매</th><th>전환값</th><th>Meta ROAS</th><th>클릭</th></tr></thead>
+                <thead><tr><th>캠페인</th><th>광고비</th><th>구매(1일 기여)</th><th>구매전환값</th><th>노출</th><th>클릭</th><th>CTR</th></tr></thead>
                 <tbody>
                   {data.campaigns
                     .filter((campaign) => campaign.date === data.metaLatestDate && !campaign.name.includes('스퀘어'))
@@ -239,8 +239,9 @@ export function LiveRevenueBoard() {
                         <td>{won.format(campaign.spend)}</td>
                         <td>{campaign.purchases}건</td>
                         <td>{won.format(campaign.conversionValue)}</td>
-                        <td><b>{metricPercent(campaign.metaRoas)}</b></td>
+                        <td>{campaign.impressions.toLocaleString('ko-KR')}</td>
                         <td>{campaign.clicks.toLocaleString('ko-KR')}</td>
+                        <td><b>{metricPercent(ratio(campaign.clicks, campaign.impressions))}</b></td>
                       </tr>
                     ))}
                 </tbody>
