@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'NOLO 실시간 매출 | Commerce Pulse',
-  description: '놀로 자사몰의 최근 7일 제품별 실시간 매출 대시보드',
+  title: 'NOLO 자사몰 실시간 대시보드',
+  description: '놀로 자사몰의 실시간 매출과 Meta 광고 효율 대시보드',
   openGraph: {
     title: 'NOLO Commerce Pulse',
     description: '최근 7일 제품별 실시간 매출을 한눈에',

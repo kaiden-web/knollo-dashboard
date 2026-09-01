@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, ChartNoAxesCombined, CircleAlert, Clock3, Gauge, Megaphone,
-  RefreshCw, ShoppingBag, Sparkles,
+  CalendarDays, CircleAlert, Clock3, Gauge, Megaphone,
+  RefreshCw, ShoppingBag, Sparkles, Target,
 } from 'lucide-react';
 
 type Day = {
@@ -29,6 +29,8 @@ type RevenueResponse = {
   campaigns: Campaign[];
   metaLatestDate: string | null;
   productNames: string[];
+  monthlyTarget: number;
+  monthToDateSales: number;
   updatedAt: string;
 };
 
@@ -100,15 +102,20 @@ export function LiveRevenueBoard() {
     });
     const sevenDayTotal = availableDays.reduce((sum, day) => sum + (day.total ?? 0), 0);
     const sevenDaySpend = productTotals.reduce((sum, product) => sum + product.spend, 0);
-    const todaySpend = today ? Object.values(today.adSpend).reduce((sum, value) => sum + value, 0) : 0;
+    const todayMetaSpend = data.campaigns
+      .filter((campaign) => campaign.date === data.today && !campaign.name.includes('스퀘어'))
+      .reduce((sum, campaign) => sum + campaign.spend, 0);
     return {
       today,
       availableDays: availableDays.length,
       sevenDayTotal,
       sevenDaySpend,
-      todaySpend,
-      todayAdRatio: ratio(todaySpend, today?.total ?? 0),
+      todayMetaSpend,
+      todayAdRatio: ratio(todayMetaSpend, today?.total ?? 0),
       sevenDayRoas: roas(sevenDayTotal, sevenDaySpend),
+      monthlyAchievement: data.monthlyTarget > 0
+        ? (data.monthToDateSales / data.monthlyTarget) * 100
+        : null,
       productTotals,
     };
   }, [data]);
@@ -118,7 +125,7 @@ export function LiveRevenueBoard() {
       <section className="hero-row">
         <div>
           <p className="eyebrow">SEPTEMBER · LIVE COMMERCE</p>
-          <h1>최근 7일 실매출 · 광고비 · 효율</h1>
+          <h1>자사몰 실시간 대시보드</h1>
           <p>자사몰 실매출과 Meta 광고 데이터를 제품·캠페인별로 한 화면에서 확인합니다.</p>
         </div>
         <button className="refresh-button" type="button" onClick={() => loadRevenue(true)} disabled={refreshing}>
@@ -139,9 +146,9 @@ export function LiveRevenueBoard() {
               <p><i />{dateLabel(data.today, true)} 진행중</p>
             </article>
             <article className="metric-card">
-              <div className="metric-label"><span>오늘 제품 광고비</span><Megaphone /></div>
-              <strong>{won.format(summary.todaySpend)}</strong>
-              <p>소재명 기준 주요 제품 자동 분류</p>
+              <div className="metric-label"><span>오늘 Meta 광고비</span><Megaphone /></div>
+              <strong>{won.format(summary.todayMetaSpend)}</strong>
+              <p>캠페인명 ‘스퀘어’ 제외 · Meta 전체</p>
             </article>
             <article className="metric-card">
               <div className="metric-label"><span>오늘 광고비율</span><Gauge /></div>
@@ -149,9 +156,9 @@ export function LiveRevenueBoard() {
               <p>광고비 ÷ 실매출</p>
             </article>
             <article className="metric-card">
-              <div className="metric-label"><span>최근 7일 실ROAS</span><ChartNoAxesCombined /></div>
-              <strong>{metricPercent(summary.sevenDayRoas)}</strong>
-              <p>실매출 ÷ 주요 제품 광고비</p>
+              <div className="metric-label"><span>9월 목표 매출 달성률</span><Target /></div>
+              <strong>{metricPercent(summary.monthlyAchievement)}</strong>
+              <p>{won.format(data.monthToDateSales)} / {won.format(data.monthlyTarget)}</p>
             </article>
           </section>
 
@@ -192,6 +199,33 @@ export function LiveRevenueBoard() {
             </div>
           </section>
 
+          <section className="panel campaign-panel" id="campaigns">
+            <div className="panel-heading">
+              <div><span className="section-kicker">META CAMPAIGN PULSE</span><h2>Meta 캠페인 실시간 현황</h2></div>
+              <span className="campaign-date">스퀘어 캠페인 제외 · {data.metaLatestDate ? `${dateLabel(data.metaLatestDate, true)} 수집분` : '수집 대기중'}</span>
+            </div>
+            <div className="campaign-table-scroll">
+              <table className="campaign-table">
+                <thead><tr><th>캠페인</th><th>광고비</th><th>구매</th><th>전환값</th><th>Meta ROAS</th><th>클릭</th></tr></thead>
+                <tbody>
+                  {data.campaigns
+                    .filter((campaign) => campaign.date === data.metaLatestDate && !campaign.name.includes('스퀘어'))
+                    .sort((a, b) => b.spend - a.spend)
+                    .map((campaign) => (
+                      <tr key={campaign.name}>
+                        <td>{campaign.name}</td>
+                        <td>{won.format(campaign.spend)}</td>
+                        <td>{campaign.purchases}건</td>
+                        <td>{won.format(campaign.conversionValue)}</td>
+                        <td><b>{metricPercent(campaign.metaRoas)}</b></td>
+                        <td>{campaign.clicks.toLocaleString('ko-KR')}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
           <section className="product-section" id="product-sales">
             <div className="section-heading">
               <div><span className="section-kicker">7-DAY PRODUCT EFFICIENCY</span><h2>제품별 최근 7일 효율</h2></div>
@@ -210,33 +244,6 @@ export function LiveRevenueBoard() {
                   <small>{shortWon.format(product.sales)}원 매출</small>
                 </article>
               ))}
-            </div>
-          </section>
-
-          <section className="panel campaign-panel" id="campaigns">
-            <div className="panel-heading">
-              <div><span className="section-kicker">META CAMPAIGN PULSE</span><h2>Meta 캠페인 실시간 현황</h2></div>
-              <span className="campaign-date">{data.metaLatestDate ? `${dateLabel(data.metaLatestDate, true)} 수집분` : '수집 대기중'}</span>
-            </div>
-            <div className="campaign-table-scroll">
-              <table className="campaign-table">
-                <thead><tr><th>캠페인</th><th>광고비</th><th>구매</th><th>전환값</th><th>Meta ROAS</th><th>클릭</th></tr></thead>
-                <tbody>
-                  {data.campaigns
-                    .filter((campaign) => campaign.date === data.metaLatestDate)
-                    .sort((a, b) => b.spend - a.spend)
-                    .map((campaign) => (
-                      <tr key={campaign.name}>
-                        <td>{campaign.name}</td>
-                        <td>{won.format(campaign.spend)}</td>
-                        <td>{campaign.purchases}건</td>
-                        <td>{won.format(campaign.conversionValue)}</td>
-                        <td><b>{metricPercent(campaign.metaRoas)}</b></td>
-                        <td>{campaign.clicks.toLocaleString('ko-KR')}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
             </div>
           </section>
 
