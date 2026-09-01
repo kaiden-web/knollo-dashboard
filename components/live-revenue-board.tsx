@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, CircleAlert, Clock3, Gauge, Megaphone,
-  RefreshCw, ShoppingBag, Sparkles, Target,
+  BarChart3, CircleAlert, Clock3, ExternalLink, Gauge, Megaphone,
+  RefreshCw, ShoppingBag, Target, Users,
 } from 'lucide-react';
 
 type Day = {
@@ -32,6 +32,23 @@ type RevenueResponse = {
   todayTarget: number;
   updatedAt: string;
 };
+type PeriodPlan = {
+  name: string; type: string; startDate: string; endDate: string; days: number;
+  targetSales: number; dailyTarget: number; targetDau: number; targetCvr: number;
+  targetAov: number; driverDailySales: number; driverVsTarget: number;
+};
+type SkuPlan = {
+  sku: string; type: string; targetSales: number; dailyTraffic: number;
+  targetCvr: number; targetAov: number; buyers: number; dailySales: number; monthlySales: number;
+};
+type PlanningResponse = {
+  today: string; periods: PeriodPlan[]; currentPeriod: PeriodPlan | null;
+  skuPlans: SkuPlan[]; monthlyTarget: number; updatedAt: string;
+  todayOverview: { totalSales: number; traffic: number; buyers: number; cvr: number; aov: number; status: string } | null;
+  skuDailyToday: Array<{ sku: string; traffic: number; buyers: number; sales: number; firstPurchaseSales: number; repeatPurchaseSales: number; cvr: number; aov: number; status: string }>;
+};
+
+const GA_DASHBOARD_URL = 'https://script.google.com/a/macros/sparkpetkorea.com/s/AKfycbz-DTZjkVAicYYvl6Mu7s_1I1-HePC08XBX5cX8nLm1xraxe3EDHlggNUYFKmKkyHWk/exec';
 
 const productColors = ['#6758f3', '#2a78d6', '#24a779', '#e39b43', '#d86d9c', '#726b84'];
 const won = new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 });
@@ -65,6 +82,7 @@ function metricPercent(value: number | null) {
 
 export function LiveRevenueBoard() {
   const [data, setData] = useState<RevenueResponse | null>(null);
+  const [planning, setPlanning] = useState<PlanningResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,9 +90,18 @@ export function LiveRevenueBoard() {
 
   const loadRevenue = useCallback(async () => {
     try {
-      const response = await fetch(`/api/revenue?client=${Date.now()}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error('request failed');
-      setData(await response.json());
+      const client = Date.now();
+      const [revenueResponse, planningResponse] = await Promise.all([
+        fetch(`/api/revenue?client=${client}`, { cache: 'no-store' }),
+        fetch(`/api/planning?client=${client}`, { cache: 'no-store' }),
+      ]);
+      if (!revenueResponse.ok || !planningResponse.ok) throw new Error('request failed');
+      const [revenueData, planningData] = await Promise.all([
+        revenueResponse.json() as Promise<RevenueResponse>,
+        planningResponse.json() as Promise<PlanningResponse>,
+      ]);
+      setData(revenueData);
+      setPlanning(planningData);
       setError(null);
     } catch {
       setError('시트 데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
@@ -105,7 +132,7 @@ export function LiveRevenueBoard() {
   }, [loadRevenue]);
 
   useEffect(() => {
-    loadRevenue();
+    void loadRevenue();
     const timer = window.setInterval(() => loadRevenue(), 60_000);
     return () => window.clearInterval(timer);
   }, [loadRevenue]);
@@ -269,6 +296,90 @@ export function LiveRevenueBoard() {
               ))}
             </div>
           </section>
+
+          {planning && (
+            <>
+              <section className="planning-section" id="period-plan">
+                <div className="section-heading">
+                  <div><span className="section-kicker">SEPTEMBER SALES PLAN</span><h2>기간별 목표 매출</h2></div>
+                  <span>02_PERIOD_PLAN 자동 연동</span>
+                </div>
+                <div className="plan-summary-grid">
+                  <article className="plan-summary-card primary-plan">
+                    <span>9월 목표 매출</span><strong>{won.format(planning.monthlyTarget)}</strong>
+                    <small>기간별 목표 합계</small>
+                  </article>
+                  <article className="plan-summary-card">
+                    <span>현재 구간</span><strong>{planning.currentPeriod?.name ?? '구간 확인 중'}</strong>
+                    <small>{planning.currentPeriod ? `${dateLabel(planning.currentPeriod.startDate)}–${dateLabel(planning.currentPeriod.endDate)} · ${planning.currentPeriod.type}` : '오늘 날짜와 일치하는 구간 없음'}</small>
+                  </article>
+                  <article className="plan-summary-card">
+                    <span>현재 일 목표</span><strong>{planning.currentPeriod ? won.format(planning.currentPeriod.dailyTarget) : '—'}</strong>
+                    <small>목표 DAU {planning.currentPeriod?.targetDau.toLocaleString('ko-KR') ?? '—'}</small>
+                  </article>
+                  <article className="plan-summary-card">
+                    <span>Driver 목표 적합도</span><strong>{planning.currentPeriod ? metricPercent(planning.currentPeriod.driverVsTarget) : '—'}</strong>
+                    <small>예상 일매출 {planning.currentPeriod ? won.format(planning.currentPeriod.driverDailySales) : '—'}</small>
+                  </article>
+                </div>
+                <div className="panel compact-table-panel">
+                  <div className="planning-table-scroll">
+                    <table className="planning-table">
+                      <thead><tr><th>구간</th><th>유형</th><th>기간</th><th>목표 매출</th><th>일 목표</th><th>DAU</th><th>CVR</th><th>AOV</th><th>Driver 예상</th></tr></thead>
+                      <tbody>{planning.periods.map((period) => (
+                        <tr key={`${period.name}-${period.type}`} className={period.name === planning.currentPeriod?.name && period.type === planning.currentPeriod?.type ? 'current-plan-row' : ''}>
+                          <td><b>{period.name}</b></td><td>{period.type}</td><td>{dateLabel(period.startDate)}–{dateLabel(period.endDate)}</td>
+                          <td>{won.format(period.targetSales)}</td><td>{won.format(period.dailyTarget)}</td><td>{period.targetDau.toLocaleString('ko-KR')}</td>
+                          <td>{metricPercent(period.targetCvr)}</td><td>{won.format(period.targetAov)}</td><td>{won.format(period.driverDailySales)}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
+              <section className="planning-section" id="sku-plan">
+                <div className="section-heading">
+                  <div><span className="section-kicker">SKU GOAL & DAILY STATUS</span><h2>SKU별 목표 · 오늘 실적</h2></div>
+                  <span>03_SKU_PLAN + 05_SKU_DAILY</span>
+                </div>
+                <div className="sku-plan-grid">
+                  {planning.skuPlans.map((sku, index) => {
+                    const today = planning.skuDailyToday.find((item) => item.sku === sku.sku);
+                    return (
+                      <article className="sku-plan-card" key={sku.sku}>
+                        <div className="sku-plan-title"><i style={{ background: productColors[index % productColors.length] }} /><div><b>{sku.sku}</b><small>{sku.type}</small></div><span>{today?.status ?? '데이터 대기'}</span></div>
+                        <strong>{won.format(today?.sales ?? 0)}</strong><p>오늘 매출 / 목표 월 {shortWon.format(sku.targetSales)}원</p>
+                        <dl>
+                          <div><dt>필요 유입/일</dt><dd>{sku.dailyTraffic.toLocaleString('ko-KR')}</dd></div>
+                          <div><dt>목표 CVR</dt><dd>{metricPercent(sku.targetCvr)}</dd></div>
+                          <div><dt>목표 AOV</dt><dd>{won.format(sku.targetAov)}</dd></div>
+                          <div><dt>예상 일매출</dt><dd>{won.format(sku.dailySales)}</dd></div>
+                        </dl>
+                      </article>
+                    );
+                  })}
+                </div>
+                <div className="today-ga-strip">
+                  <div><BarChart3 /><span>오늘 GA 상태</span><b>{planning.todayOverview?.status ?? '데이터 대기'}</b></div>
+                  <div><Users /><span>유입</span><b>{planning.todayOverview?.traffic.toLocaleString('ko-KR') ?? '—'}</b></div>
+                  <div><ShoppingBag /><span>구매자</span><b>{planning.todayOverview?.buyers.toLocaleString('ko-KR') ?? '—'}</b></div>
+                  <div><Gauge /><span>CVR</span><b>{planning.todayOverview ? metricPercent(planning.todayOverview.cvr) : '—'}</b></div>
+                </div>
+              </section>
+
+              <section className="planning-section ga-section" id="ga-analysis">
+                <div className="section-heading">
+                  <div><span className="section-kicker">GA D-1 MARKETING</span><h2>GA 매출 원인 분석</h2></div>
+                  <a className="source-link" href={GA_DASHBOARD_URL} target="_blank" rel="noreferrer">원본 크게 보기 <ExternalLink /></a>
+                </div>
+                <div className="ga-frame-shell">
+                  <div className="ga-frame-note"><span><i />GA 웹앱 실시간 연결</span><small>전체 · 채널별 · 매출 원인 · 주간 누적</small></div>
+                  <iframe src={GA_DASHBOARD_URL} title="놀로스토어 GA D-1 마케팅 대시보드" loading="lazy" />
+                </div>
+              </section>
+            </>
+          )}
 
           <footer className="dashboard-footer"><span>NOLO Commerce Pulse</span><p>자사몰 실매출 + Meta 광고 데이터 · Asia/Seoul</p></footer>
         </>

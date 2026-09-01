@@ -14,6 +14,9 @@ export default function Home() {
           <a href="#daily-sales">일자별 제품</a>
           <a href="#campaigns">Meta 캠페인</a>
           <a href="#product-sales">제품 효율</a>
+          <a href="#period-plan">기간 목표</a>
+          <a href="#sku-plan">SKU 목표</a>
+          <a href="#ga-analysis">GA 분석</a>
         </nav>
         <span className="sheet-status"><i />매출·Meta 연결</span>
       </header>
