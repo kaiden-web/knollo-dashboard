@@ -9,15 +9,6 @@ import {
   Sparkles,
   WalletCards,
 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 
 const dailyRevenue = [4.05, 6.23, 4.79, 6.87, 7.63, 5.39, 4.83];
 const dailyAdSpend = [0.98, 1.25, 1.36, 1.15, 1.01, 1.54, 0.32];
@@ -179,19 +170,19 @@ export default function Home() {
             <span className="live-pill"><i />Meta 실시간</span>
           </div>
           <article className="panel campaign-table">
-            <Table>
-              <TableHeader><TableRow><TableHead>캠페인</TableHead><TableHead>광고비 / 일예산</TableHead><TableHead>소진율</TableHead><TableHead>CTR</TableHead><TableHead>구매</TableHead><TableHead>전환값</TableHead><TableHead className="text-right">ROAS</TableHead></TableRow></TableHeader>
-              <TableBody>
+            <div className="table-scroll"><table>
+              <thead><tr><th>캠페인</th><th>광고비 / 일예산</th><th>소진율</th><th>CTR</th><th>구매</th><th>전환값</th><th className="text-right">ROAS</th></tr></thead>
+              <tbody>
                 {campaigns.map((campaign) => (
-                  <TableRow key={campaign.name}>
-                    <TableCell className="campaign-name">{campaign.name}</TableCell>
-                    <TableCell><b>{campaign.spend}</b><small>{campaign.budget}</small></TableCell>
-                    <TableCell className="pace-cell"><div><Progress value={Math.min(campaign.pace, 100)} /><span className={campaign.pace > 100 ? 'over' : ''}>{campaign.pace}%</span></div></TableCell>
-                    <TableCell>{campaign.ctr}</TableCell><TableCell>{campaign.purchases}건</TableCell><TableCell>{campaign.value}</TableCell><TableCell className="roas-highlight text-right">{campaign.roas}</TableCell>
-                  </TableRow>
+                  <tr key={campaign.name}>
+                    <td className="campaign-name">{campaign.name}</td>
+                    <td><b>{campaign.spend}</b><small>{campaign.budget}</small></td>
+                    <td className="pace-cell"><div><span className="pace-bar" role="progressbar" aria-label={`${campaign.name} 예산 소진율`} aria-valuenow={campaign.pace} aria-valuemin={0} aria-valuemax={150}><i style={{ width: `${Math.min(campaign.pace, 100)}%` }} /></span><span className={campaign.pace > 100 ? 'over' : ''}>{campaign.pace}%</span></div></td>
+                    <td>{campaign.ctr}</td><td>{campaign.purchases}건</td><td>{campaign.value}</td><td className="roas-highlight text-right">{campaign.roas}</td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table></div>
             <div className="table-summary"><span>상위 5개 캠페인</span><b>광고비 ₩356,070</b><b>구매 60건</b><b>전환값 ₩3.58M</b></div>
           </article>
         </section>

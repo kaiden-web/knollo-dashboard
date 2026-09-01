@@ -154,6 +154,7 @@ button { cursor: pointer; }
 .focus-insight { display: grid; grid-template-columns: 16px 1fr; gap: 7px; margin: 17px 0 0; color: #d6d2e5; font-size: 10px; line-height: 1.55; }
 .focus-insight svg { width: 14px; color: #c9c1ff; }
 .campaign-table { padding: 0; overflow: hidden; }
+.table-scroll { overflow-x: auto; }
 .campaign-table table { min-width: 900px; }
 .campaign-table thead { background: #f8f8fa; }
 .campaign-table th { height: 42px; padding: 0 15px; color: #888a94; font-size: 9.5px; font-weight: 750; }
@@ -162,7 +163,8 @@ button { cursor: pointer; }
 .campaign-table td small { display: block; margin-top: 3px; color: #a0a2aa; font-size: 9px; }
 .campaign-name { color: #26272d !important; font-weight: 700; }
 .pace-cell > div { display: grid; grid-template-columns: 75px auto; align-items: center; gap: 8px; }
-.pace-cell [data-slot='progress'] { width: 75px; }
+.pace-bar { display: block; width: 75px; height: 4px; overflow: hidden; border-radius: 99px; background: #ececf1; }
+.pace-bar i { display: block; height: 100%; border-radius: inherit; background: #6758f3; }
 .pace-cell span { font-size: 9.5px; font-weight: 700; }
 .pace-cell span.over { color: #c84d45; }
 .roas-highlight { color: #4f40cf !important; font-weight: 800; }
