@@ -68,9 +68,9 @@ export function LiveRevenueBoard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
 
-  const loadRevenue = useCallback(async (manual = false) => {
-    if (manual) setRefreshing(true);
+  const loadRevenue = useCallback(async () => {
     try {
       const response = await fetch(`/api/revenue?client=${Date.now()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('request failed');
@@ -80,9 +80,29 @@ export function LiveRevenueBoard() {
       setError('시트 데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
+
+  const refreshSources = useCallback(async () => {
+    setRefreshing(true);
+    setRefreshMessage(null);
+    try {
+      const response = await fetch('/api/refresh', { method: 'POST', cache: 'no-store' });
+      const result = await response.json() as { skipped?: boolean; message?: string };
+      if (!response.ok) throw new Error(result.message || 'refresh failed');
+      await new Promise((resolve) => window.setTimeout(resolve, 1200));
+      await loadRevenue();
+      setRefreshMessage(result.skipped
+        ? '방금 수집한 데이터로 다시 표시했어요.'
+        : 'Meta를 새로 수집하고 매출 최신값을 반영했어요.');
+    } catch (refreshError) {
+      setRefreshMessage(refreshError instanceof Error
+        ? refreshError.message
+        : '원본 데이터 수집에 실패했어요.');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadRevenue]);
 
   useEffect(() => {
     loadRevenue();
@@ -127,12 +147,15 @@ export function LiveRevenueBoard() {
           <h1>자사몰 실시간 대시보드</h1>
           <p>자사몰 실매출과 Meta 광고 데이터를 제품·캠페인별로 한 화면에서 확인합니다.</p>
         </div>
-        <button className="refresh-button" type="button" onClick={() => loadRevenue(true)} disabled={refreshing}>
-          <RefreshCw className={refreshing ? 'spin' : ''} />{refreshing ? '불러오는 중' : '지금 새로고침'}
-        </button>
+        <div className="refresh-actions">
+          <button className="refresh-button" type="button" onClick={refreshSources} disabled={refreshing}>
+            <RefreshCw className={refreshing ? 'spin' : ''} />{refreshing ? '원본 수집 중' : '지금 데이터 수집'}
+          </button>
+          {refreshMessage && <small aria-live="polite">{refreshMessage}</small>}
+        </div>
       </section>
 
-      {error && <div className="error-banner" role="alert"><CircleAlert /><span>{error}</span><button type="button" onClick={() => loadRevenue(true)}>다시 시도</button></div>}
+      {error && <div className="error-banner" role="alert"><CircleAlert /><span>{error}</span><button type="button" onClick={() => loadRevenue()}>다시 시도</button></div>}
 
       {loading && !data ? (
         <section className="loading-panel" aria-live="polite"><RefreshCw className="spin" /><span>실시간 데이터를 불러오고 있어요…</span></section>
