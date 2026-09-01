@@ -36,14 +36,17 @@ type PeriodPlan = {
   name: string; type: string; startDate: string; endDate: string; days: number;
   targetSales: number; dailyTarget: number; targetDau: number; targetCvr: number;
   targetAov: number; driverDailySales: number; driverVsTarget: number;
+  actualSales: number; elapsedDays: number; targetToDate: number; achievement: number; remaining: number;
 };
 type SkuPlan = {
   sku: string; type: string; targetSales: number; dailyTraffic: number;
   targetCvr: number; targetAov: number; buyers: number; dailySales: number; monthlySales: number;
+  actualSales: number; achievement: number; remaining: number;
 };
 type PlanningResponse = {
   today: string; periods: PeriodPlan[]; currentPeriod: PeriodPlan | null;
-  skuPlans: SkuPlan[]; monthlyTarget: number; updatedAt: string;
+  skuPlans: SkuPlan[]; monthlyTarget: number; monthActual: number; monthlyAchievement: number;
+  monthlyRemaining: number; updatedAt: string;
   todayOverview: { totalSales: number; traffic: number; buyers: number; cvr: number; aov: number; status: string } | null;
   skuDailyToday: Array<{ sku: string; traffic: number; buyers: number; sales: number; firstPurchaseSales: number; repeatPurchaseSales: number; cvr: number; aov: number; status: string }>;
 };
@@ -78,6 +81,27 @@ function roas(sales: number, spend: number) {
 
 function metricPercent(value: number | null) {
   return value === null ? '—' : `${percent.format(value)}%`;
+}
+
+function ProductTrend({ days, product, color }: { days: Day[]; product: string; color: string }) {
+  const values = days.map((day) => day.products?.[product] ?? 0);
+  const max = Math.max(...values, 1);
+  return (
+    <div className="trend-chart" aria-label={`${product} 최근 7일 매출 추이`}>
+      <div className="trend-bars">
+        {days.map((day, index) => {
+          const value = values[index];
+          return (
+            <div className="trend-column" key={day.date}>
+              <span className="trend-value">{value > 0 ? `${shortWon.format(value)}원` : '—'}</span>
+              <div className="trend-track"><i style={{ height: `${Math.max((value / max) * 100, value > 0 ? 7 : 2)}%`, background: color }} /></div>
+              <small>{dateLabel(day.date)}</small>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function LiveRevenueBoard() {
@@ -278,20 +302,15 @@ export function LiveRevenueBoard() {
 
           <section className="product-section" id="product-sales">
             <div className="section-heading">
-              <div><span className="section-kicker">7-DAY PRODUCT EFFICIENCY</span><h2>제품별 최근 7일 효율</h2></div>
+              <div><span className="section-kicker">7-DAY PRODUCT TREND</span><h2>제품별 최근 7일 매출 추이</h2></div>
               <span>{dateLabel(data.days[0].date)} – {dateLabel(data.days[6].date)}</span>
             </div>
-            <div className="product-grid">
+            <div className="trend-grid">
               {summary.productTotals.map((product) => (
-                <article className="product-card" key={product.name}>
-                  <div><i style={{ background: product.color }} /><span>{product.name}</span></div>
-                  <strong>{won.format(product.sales)}</strong>
-                  <dl>
-                    <div><dt>광고비</dt><dd>{won.format(product.spend)}</dd></div>
-                    <div><dt>광고비율</dt><dd>{metricPercent(product.adRatio)}</dd></div>
-                    <div><dt>실ROAS</dt><dd>{metricPercent(product.realRoas)}</dd></div>
-                  </dl>
-                  <small>{shortWon.format(product.sales)}원 매출</small>
+                <article className="trend-card" key={product.name}>
+                  <div className="trend-card-heading"><div><i style={{ background: product.color }} /><span>{product.name}</span></div><strong>{won.format(product.sales)}</strong></div>
+                  <ProductTrend days={data.days} product={product.name} color={product.color} />
+                  <div className="trend-foot"><span>7일 누적</span><b>광고비율 {metricPercent(product.adRatio)}</b></div>
                 </article>
               ))}
             </div>
@@ -306,31 +325,34 @@ export function LiveRevenueBoard() {
                 </div>
                 <div className="plan-summary-grid">
                   <article className="plan-summary-card primary-plan">
-                    <span>9월 목표 매출</span><strong>{won.format(planning.monthlyTarget)}</strong>
-                    <small>기간별 목표 합계</small>
+                    <span>9월 누적 실매출</span><strong>{won.format(planning.monthActual)}</strong>
+                    <small>월 목표 {won.format(planning.monthlyTarget)}</small>
                   </article>
                   <article className="plan-summary-card">
-                    <span>현재 구간</span><strong>{planning.currentPeriod?.name ?? '구간 확인 중'}</strong>
+                    <span>9월 목표 달성률</span><strong>{metricPercent(planning.monthlyAchievement)}</strong>
+                    <div className="goal-progress"><i style={{ width: `${Math.min(planning.monthlyAchievement, 100)}%` }} /></div>
+                    <small>남은 목표 {won.format(planning.monthlyRemaining)}</small>
+                  </article>
+                  <article className="plan-summary-card">
+                    <span>현재 {planning.currentPeriod?.name ?? '구간'} 누적 달성률</span><strong>{planning.currentPeriod ? metricPercent(planning.currentPeriod.achievement) : '—'}</strong>
+                    <div className="goal-progress"><i style={{ width: `${Math.min(planning.currentPeriod?.achievement ?? 0, 100)}%` }} /></div>
+                    <small>실적 {planning.currentPeriod ? won.format(planning.currentPeriod.actualSales) : '—'} / 목표 누적 {planning.currentPeriod ? won.format(planning.currentPeriod.targetToDate) : '—'}</small>
+                  </article>
+                  <article className="plan-summary-card">
+                    <span>현재 구간 남은 목표</span><strong>{planning.currentPeriod ? won.format(planning.currentPeriod.remaining) : '—'}</strong>
                     <small>{planning.currentPeriod ? `${dateLabel(planning.currentPeriod.startDate)}–${dateLabel(planning.currentPeriod.endDate)} · ${planning.currentPeriod.type}` : '오늘 날짜와 일치하는 구간 없음'}</small>
-                  </article>
-                  <article className="plan-summary-card">
-                    <span>현재 일 목표</span><strong>{planning.currentPeriod ? won.format(planning.currentPeriod.dailyTarget) : '—'}</strong>
-                    <small>목표 DAU {planning.currentPeriod?.targetDau.toLocaleString('ko-KR') ?? '—'}</small>
-                  </article>
-                  <article className="plan-summary-card">
-                    <span>Driver 목표 적합도</span><strong>{planning.currentPeriod ? metricPercent(planning.currentPeriod.driverVsTarget) : '—'}</strong>
-                    <small>예상 일매출 {planning.currentPeriod ? won.format(planning.currentPeriod.driverDailySales) : '—'}</small>
                   </article>
                 </div>
                 <div className="panel compact-table-panel">
                   <div className="planning-table-scroll">
                     <table className="planning-table">
-                      <thead><tr><th>구간</th><th>유형</th><th>기간</th><th>목표 매출</th><th>일 목표</th><th>DAU</th><th>CVR</th><th>AOV</th><th>Driver 예상</th></tr></thead>
+                      <thead><tr><th>구간</th><th>유형</th><th>기간</th><th>전체 목표</th><th>목표 누적</th><th>실제 누적</th><th>달성률</th><th>남은 목표</th><th>상태</th></tr></thead>
                       <tbody>{planning.periods.map((period) => (
                         <tr key={`${period.name}-${period.type}`} className={period.name === planning.currentPeriod?.name && period.type === planning.currentPeriod?.type ? 'current-plan-row' : ''}>
                           <td><b>{period.name}</b></td><td>{period.type}</td><td>{dateLabel(period.startDate)}–{dateLabel(period.endDate)}</td>
-                          <td>{won.format(period.targetSales)}</td><td>{won.format(period.dailyTarget)}</td><td>{period.targetDau.toLocaleString('ko-KR')}</td>
-                          <td>{metricPercent(period.targetCvr)}</td><td>{won.format(period.targetAov)}</td><td>{won.format(period.driverDailySales)}</td>
+                          <td>{won.format(period.targetSales)}</td><td>{period.elapsedDays > 0 ? won.format(period.targetToDate) : '—'}</td><td>{period.elapsedDays > 0 ? won.format(period.actualSales) : '—'}</td>
+                          <td><b className={period.achievement >= 100 ? 'positive' : period.elapsedDays > 0 ? 'attention' : ''}>{period.elapsedDays > 0 ? metricPercent(period.achievement) : '—'}</b></td>
+                          <td>{won.format(period.remaining)}</td><td>{period.elapsedDays === 0 ? '예정' : period.achievement >= 100 ? '목표 이상' : '진행중'}</td>
                         </tr>
                       ))}</tbody>
                     </table>
@@ -349,12 +371,13 @@ export function LiveRevenueBoard() {
                     return (
                       <article className="sku-plan-card" key={sku.sku}>
                         <div className="sku-plan-title"><i style={{ background: productColors[index % productColors.length] }} /><div><b>{sku.sku}</b><small>{sku.type}</small></div><span>{today?.status ?? '데이터 대기'}</span></div>
-                        <strong>{won.format(today?.sales ?? 0)}</strong><p>오늘 매출 / 목표 월 {shortWon.format(sku.targetSales)}원</p>
+                        <strong>{won.format(sku.actualSales)}</strong><p>9월 누적 실매출 / 목표 {shortWon.format(sku.targetSales)}원</p>
+                        <div className="sku-progress-row"><div className="goal-progress"><i style={{ width: `${Math.min(sku.achievement, 100)}%`, background: productColors[index % productColors.length] }} /></div><b>{metricPercent(sku.achievement)}</b></div>
                         <dl>
+                          <div><dt>남은 목표</dt><dd>{won.format(sku.remaining)}</dd></div>
+                          <div><dt>예상 일매출</dt><dd>{won.format(sku.dailySales)}</dd></div>
                           <div><dt>필요 유입/일</dt><dd>{sku.dailyTraffic.toLocaleString('ko-KR')}</dd></div>
                           <div><dt>목표 CVR</dt><dd>{metricPercent(sku.targetCvr)}</dd></div>
-                          <div><dt>목표 AOV</dt><dd>{won.format(sku.targetAov)}</dd></div>
-                          <div><dt>예상 일매출</dt><dd>{won.format(sku.dailySales)}</dd></div>
                         </dl>
                       </article>
                     );
